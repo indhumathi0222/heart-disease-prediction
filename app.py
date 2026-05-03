@@ -4,35 +4,42 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
 
-# Load and train
+# Load data
 df = pd.read_csv('heart_disease_uci.csv')
 df['target'] = (df['num'] > 0).astype(int)
 df = df.drop(['id', 'num', 'dataset'], axis=1)
 
-num_cols = ['trestbps', 'chol', 'thalch', 'oldpeak']
+# Fix missing values
+num_cols = ['trestbps', 'chol', 'thalch', 'oldpeak', 'ca']
+cat_cols = ['fbs', 'restecg', 'exang', 'slope', 'thal']
+
 for col in num_cols:
     df[col].fillna(df[col].median(), inplace=True)
-
-cat_cols = ['fbs', 'restecg', 'exang', 'slope', 'ca', 'thal']
 for col in cat_cols:
     df[col].fillna(df[col].mode()[0], inplace=True)
 
-le = LabelEncoder()
+# Encoding
+le_dict = {}
 encode_cols = ['sex', 'cp', 'fbs', 'restecg', 'exang', 'slope', 'thal']
 for col in encode_cols:
+    le = LabelEncoder()
     df[col] = le.fit_transform(df[col].astype(str))
+    le_dict[col] = le
 
+# Train model
 X = df.drop('target', axis=1)
 y = df['target']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42)
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 model = SVC()
 model.fit(X_train, y_train)
 
-# App
+# App UI
 st.title("❤️ Heart Disease Prediction")
 st.write("Enter patient details below:")
 
@@ -56,7 +63,8 @@ if st.button("🔍 Predict"):
                                   slope, ca, thal]],
                                columns=X.columns)
     for col in encode_cols:
-        input_data[col] = le.fit_transform(input_data[col].astype(str))
+        le = le_dict[col]
+        input_data[col] = le.transform(input_data[col].astype(str))
     input_scaled = scaler.transform(input_data)
     prediction = model.predict(input_scaled)
     if prediction[0] == 1:
