@@ -4,29 +4,29 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
 
 # Load data
 df = pd.read_csv('heart_disease_uci.csv')
 df['target'] = (df['num'] > 0).astype(int)
 df = df.drop(['id', 'num', 'dataset'], axis=1)
 
-# Fix missing values
-num_cols = ['trestbps', 'chol', 'thalch', 'oldpeak', 'ca']
-cat_cols = ['fbs', 'restecg', 'exang', 'slope', 'thal']
-
-for col in num_cols:
-    df[col].fillna(df[col].median(), inplace=True)
-for col in cat_cols:
-    df[col].fillna(df[col].mode()[0], inplace=True)
+# Fix ALL missing values
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col].fillna(df[col].mode()[0], inplace=True)
+    else:
+        df[col].fillna(df[col].median(), inplace=True)
 
 # Encoding
 le_dict = {}
-encode_cols = ['sex', 'cp', 'fbs', 'restecg', 'exang', 'slope', 'thal']
-for col in encode_cols:
-    le = LabelEncoder()
-    df[col] = le.fit_transform(df[col].astype(str))
-    le_dict[col] = le
+for col in df.columns:
+    if df[col].dtype == 'object':
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].astype(str))
+        le_dict[col] = le
+
+# Make sure no NaN left
+df = df.dropna()
 
 # Train model
 X = df.drop('target', axis=1)
@@ -62,9 +62,13 @@ if st.button("🔍 Predict"):
                                   restecg, thalch, exang, oldpeak,
                                   slope, ca, thal]],
                                columns=X.columns)
-    for col in encode_cols:
-        le = le_dict[col]
-        input_data[col] = le.transform(input_data[col].astype(str))
+    for col in le_dict:
+        if col in input_data.columns:
+            try:
+                input_data[col] = le_dict[col].transform(
+                    input_data[col].astype(str))
+            except:
+                input_data[col] = 0
     input_scaled = scaler.transform(input_data)
     prediction = model.predict(input_scaled)
     if prediction[0] == 1:
