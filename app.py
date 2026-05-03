@@ -10,27 +10,29 @@ df = pd.read_csv('heart_disease_uci.csv')
 df['target'] = (df['num'] > 0).astype(int)
 df = df.drop(['id', 'num', 'dataset'], axis=1)
 
-# Fix ALL missing values
+# Fix missing values correctly
 for col in df.columns:
-    if df[col].dtype == 'object':
-        df[col].fillna(df[col].mode()[0], inplace=True)
-    else:
+    if df[col].dtype in ['int64', 'float64']:
         df[col].fillna(df[col].median(), inplace=True)
+    else:
+        df[col].fillna(df[col].mode()[0], inplace=True)
 
 # Encoding
 le_dict = {}
 for col in df.columns:
-    if df[col].dtype == 'object':
+    if df[col].dtype == 'object' or df[col].dtype.name == 'boolean':
+        df[col] = df[col].astype(str)
         le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].astype(str))
+        df[col] = le.fit_transform(df[col])
         le_dict[col] = le
 
-# Make sure no NaN left
+# Convert all to float
+df = df.astype(float)
 df = df.dropna()
 
 # Train model
 X = df.drop('target', axis=1)
-y = df['target']
+y = df['target'].astype(int)
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42)
 scaler = StandardScaler()
@@ -69,6 +71,7 @@ if st.button("🔍 Predict"):
                     input_data[col].astype(str))
             except:
                 input_data[col] = 0
+    input_data = input_data.astype(float)
     input_scaled = scaler.transform(input_data)
     prediction = model.predict(input_scaled)
     if prediction[0] == 1:
